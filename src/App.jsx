@@ -1,19 +1,21 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import './App.css'
+import { NavBar, HeroSection, Footer } from "./components/WebSections"
+import { ArticleSection } from "./components/WebSections"
 
 function App() {
-  const [count, setCount] = useState(0)
-
   return (
     <>
-      <section>
-        <h1>My First React App on Vite</h1>
-      </section>
+      <div className="flex flex-col min-h-screen bg-[#F9F8F6]">
+        <NavBar />
+        <main className="flex-1">
+          <HeroSection />
+        </main>
+        <ArticleSection />
+        <Footer />
+      </div>
+      
     </>
-  );
+  )
+  
 }
 
 export default App
