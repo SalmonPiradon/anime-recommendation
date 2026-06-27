@@ -1,5 +1,7 @@
-import { NavBar, HeroSection, Footer } from "./components/WebSections"
-import { ArticleSection } from "./components/WebSections"
+import { NavBar } from "./components/NavBar"
+import { HeroSection } from "./components/HeroSection"
+import { Footer } from "./components/Footer"
+import { ArticleSection } from "./components/ArticleSection"
 
 function App() {
   return (
@@ -12,10 +14,8 @@ function App() {
         <ArticleSection />
         <Footer />
       </div>
-      
     </>
   )
-  
 }
 
 export default App
