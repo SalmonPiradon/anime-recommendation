@@ -1,17 +1,18 @@
-import { BlogCard } from "./ui/BlogCard";
-import { Field, FieldLabel } from "./ui/field";
+import { BlogCard } from "../ui/BlogCard";
+import { Field, FieldLabel } from "../ui/field";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "./ui/select";
+} from "../ui/select";
 
 import { SearchBar } from "./SearchBar";
 import { LoadingState } from "./LoadingState";
 import { useState, useEffect } from "react";
 import axios from "axios";
+import { Link } from "react-router-dom";
 
 export function ArticleSection() {
   const categories = ["Highlight", "Cat", "Inspiration", "General"];
@@ -25,7 +26,7 @@ export function ArticleSection() {
   // category รับข้อมูลมาจาก getPostsData(selectedCategory)
   // filter category จาก select ตรงนี้
   const fetchPosts = async (category, pageNumber, append = false) => {
-    setIsLoading(true);
+    setIsLoading(true); // เริ่ม loading
 
     try {
       const params = {
@@ -57,7 +58,7 @@ export function ArticleSection() {
       console.error("Error fetching posts:", error);
       setHasMore(false);
     } finally {
-      setIsLoading(false);
+      setIsLoading(false); // สิ้นสุด loading
     }
   };
 
@@ -149,15 +150,16 @@ export function ArticleSection() {
       ) : (
         <div className="grid grid-cols-1 gap-16 md:gap-6 md:grid-cols-2">
           {filteredPosts.map((post) => (
-            <BlogCard
-              key={post.id}
-              image={post.image}
-              category={post.category}
-              title={post.title}
-              description={post.description}
-              author={post.author}
-              date={formatDate(post.date)}
-            />
+            <Link key={post.id} to={`/posts/${post.id}`}>
+              <BlogCard
+                image={post.image}
+                category={post.category}
+                title={post.title}
+                description={post.description}
+                author={post.author}
+                date={formatDate(post.date)}
+              />
+            </Link>
           ))}
         </div>
       )}
