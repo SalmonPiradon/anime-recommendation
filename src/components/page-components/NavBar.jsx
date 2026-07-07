@@ -1,3 +1,5 @@
+import { Link } from "react-router-dom"
+
 export function NavBar() {
   return (
     <header className="border-b border-stone-300">
@@ -21,18 +23,23 @@ export function NavBar() {
         </button>
 
         <nav className="hidden gap-3 lg:flex">
-          <button
-            type="button"
-            className="cursor-pointer rounded-full border border-stone-500 bg-white px-8 py-3 text-[16px] font-medium text-[#26231e]"
-          >
-            Log in
-          </button>
-          <button
-            type="button"
-            className="cursor-pointer rounded-full border border-[#26231e] bg-[#26231e] px-8 py-3 text-[16px] font-medium text-white"
-          >
-            Sign up
-          </button>
+          <Link to="/login">
+            <button
+              type="button"
+              className="cursor-pointer rounded-full border border-stone-500 bg-white px-8 py-3 text-[16px] font-medium text-[#26231e]"
+            >
+              Log in
+            </button>
+          </Link>
+
+          <Link to="/signup">
+            <button
+              type="button"
+              className="cursor-pointer rounded-full border border-[#26231e] bg-[#26231e] px-8 py-3 text-[16px] font-medium text-white"
+            >
+              Sign up
+            </button>
+          </Link>
         </nav>
       </div>
     </header>

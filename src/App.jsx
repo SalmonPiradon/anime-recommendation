@@ -1,19 +1,24 @@
-import { NavBar } from "./components/NavBar"
-import { HeroSection } from "./components/HeroSection"
-import { Footer } from "./components/Footer"
-import { ArticleSection } from "./components/ArticleSection"
+import LandingPage from "./pages/LandingPage"
+import ArticleDetail from "./pages/ArticleDetail"
+import NotFoundPage from "./pages/NotFoundPage"
+import LoginPage from "./pages/LoginPage"
+import SignupPage from "./pages/SignupPage"
+import { BrowserRouter, Routes, Route } from "react-router-dom"
+import { Toaster } from "sonner"
 
 function App() {
   return (
     <>
-      <div className="flex flex-col min-h-screen bg-[#F9F8F6]">
-        <NavBar />
-        <main className="flex-1">
-          <HeroSection />
-        </main>
-        <ArticleSection />
-        <Footer />
-      </div>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/posts/:id" element={<ArticleDetail />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/signup" element={<SignupPage />} />
+          <Route path="*" element={<NotFoundPage />} />
+        </Routes>
+      </BrowserRouter>
+      <Toaster position="bottom-right" closeButton />
     </>
   )
 }
