@@ -18,6 +18,8 @@ export function ArticleSection() {
   const categories = ["Highlight", "Cat", "Inspiration", "General"];
   const [selectedCategory, setSelectedCategory] = useState("Highlight");
   const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
+  const [showSearchResults, setShowSearchResults] = useState(false);
   const [blogPosts, setBlogPosts] = useState([]);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
@@ -73,6 +75,30 @@ export function ArticleSection() {
     fetchPosts(selectedCategory, page + 1, true);
   };
 
+  // ค้นหาบทความจาก API เมื่อพิมพ์ใน search bar
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      setSearchResults([]);
+      setShowSearchResults(false);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      try {
+        const response = await axios.get(
+          "https://blog-post-project-api.vercel.app/posts",
+          { params: { keyword: searchQuery, limit: 20 } },
+        );
+        setSearchResults(response.data.posts);
+        setShowSearchResults(true);
+      } catch (error) {
+        console.error("Error searching posts:", error);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
   // function แปลง date จาก "2024-09-11T00:00:00.000Z" เป็น "11 September 2024"
   const formatDate = (date) =>
     new Date(date).toLocaleDateString("en-GB", {
@@ -81,14 +107,24 @@ export function ArticleSection() {
       year: "numeric",
     });
 
-  // filter ของ serach bar
-  const filteredPosts = blogPosts.filter((post) => {
-    const keyword = searchQuery.toLowerCase();
-    return (
-      post.title.toLowerCase().includes(keyword) ||
-      post.description.toLowerCase().includes(keyword)
-    );
-  });
+  const handleSearchFocus = () => {
+    if (searchQuery.trim() && searchResults.length > 0) {
+      setShowSearchResults(true);
+    }
+  };
+
+  const handleCloseSearchResults = () => {
+    setShowSearchResults(false);
+  };
+
+  const searchBarProps = {
+    value: searchQuery,
+    onChange: setSearchQuery,
+    results: searchResults,
+    showResults: showSearchResults,
+    onFocus: handleSearchFocus,
+    onCloseResults: handleCloseSearchResults,
+  };
 
   return (
     <section className="mx-auto flex w-full max-w-[1400px] flex-col gap-10 px-4 py-10">
@@ -115,12 +151,12 @@ export function ArticleSection() {
           ))}
         </nav>
         <div className="hidden lg:block">
-          <SearchBar value={searchQuery} onChange={setSearchQuery} />
+          <SearchBar {...searchBarProps} />
         </div>
 
         {/* category filter bar of mobile*/}
         <div className="flex w-full flex-col gap-4 lg:hidden">
-          <SearchBar value={searchQuery} onChange={setSearchQuery} />
+          <SearchBar {...searchBarProps} />
 
           <Field className="gap-2">
             <FieldLabel className="text-[16px] font-medium text-stone-500">
@@ -149,7 +185,7 @@ export function ArticleSection() {
         <LoadingState />
       ) : (
         <div className="grid grid-cols-1 gap-16 md:gap-6 md:grid-cols-2">
-          {filteredPosts.map((post) => (
+          {blogPosts.map((post) => (
             <Link key={post.id} to={`/posts/${post.id}`}>
               <BlogCard
                 image={post.image}
