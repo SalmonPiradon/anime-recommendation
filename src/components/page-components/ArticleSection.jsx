@@ -27,35 +27,30 @@ export function ArticleSection() {
 
   // category รับข้อมูลมาจาก getPostsData(selectedCategory)
   // filter category จาก select ตรงนี้
+
   const fetchPosts = async (category, pageNumber, append = false) => {
     setIsLoading(true); // เริ่ม loading
-
     try {
       const params = {
         page: pageNumber,
         limit: 6,
       };
-
       // Highlight แสดงทุก category
       if (category !== "Highlight") {
         params.category = category;
       }
-
       const response = await axios.get(
         "https://blog-post-project-api.vercel.app/posts",
         { params },
       );
-
       // แยกการแสดงผลของหน้าแรก กับ หน้าถัดไปเพราะเจอปัญหาการแสดงผลของหน้าแรก
       if (append) {
         setBlogPosts((prevPosts) => [...prevPosts, ...response.data.posts]);
       } else {
         setBlogPosts(response.data.posts);
       }
-
       // ตรวจสอบว่ามีข้อมูลต่อไหม ถ้าไม่มีข้อมูลต่อไปจะไม่แสดงปุ่ม View more
       setHasMore(response.data.currentPage < response.data.totalPages);
-
     } catch (error) {
       console.error("Error fetching posts:", error);
       setHasMore(false);
@@ -87,7 +82,7 @@ export function ArticleSection() {
       try {
         const response = await axios.get(
           "https://blog-post-project-api.vercel.app/posts",
-          { params: { keyword: searchQuery, limit: 20 } },
+          { params: { keyword: searchQuery, limit: 20 } },  // dropdown ของ search bar มี limit 20 ตัว
         );
         setSearchResults(response.data.posts);
         setShowSearchResults(true);
@@ -107,23 +102,11 @@ export function ArticleSection() {
       year: "numeric",
     });
 
-  const handleSearchFocus = () => {
-    if (searchQuery.trim() && searchResults.length > 0) {
-      setShowSearchResults(true);
-    }
-  };
-
-  const handleCloseSearchResults = () => {
-    setShowSearchResults(false);
-  };
-
   const searchBarProps = {
     value: searchQuery,
     onChange: setSearchQuery,
     results: searchResults,
     showResults: showSearchResults,
-    onFocus: handleSearchFocus,
-    onCloseResults: handleCloseSearchResults,
   };
 
   return (

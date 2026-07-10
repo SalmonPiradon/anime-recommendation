@@ -3,14 +3,7 @@ import { Link } from "react-router-dom";
 
 import { Input } from "@/components/ui/input";
 
-export function SearchBar({
-  value,
-  onChange,
-  results,
-  showResults,
-  onFocus,
-  onCloseResults,
-}) {
+export function SearchBar({ value, onChange, results, showResults }) {
   const hasResults = showResults && results.length > 0;
 
   return (
@@ -20,7 +13,6 @@ export function SearchBar({
         placeholder="Search"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        onFocus={onFocus}
         className="h-[50px] bg-white pr-10 placeholder:text-[16px] placeholder:font-medium placeholder:text-[#75716B]"
         aria-label="Search articles"
         aria-expanded={hasResults}
@@ -40,7 +32,6 @@ export function SearchBar({
             <li key={post.id}>
               <Link
                 to={`/posts/${post.id}`}
-                onClick={onCloseResults}
                 className="block truncate px-4 py-3 text-[16px] text-[#26231e] hover:bg-[#EFEEEB]"
               >
                 {post.title}
