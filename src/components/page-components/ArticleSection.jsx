@@ -19,7 +19,7 @@ export function ArticleSection() {
   const [selectedCategory, setSelectedCategory] = useState("Highlight");
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
-  const [showSearchResults, setShowSearchResults] = useState(false);
+  const [showSearchDropdown, setShowSearchDropdown] = useState(false);
   const [blogPosts, setBlogPosts] = useState([]);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
@@ -27,35 +27,30 @@ export function ArticleSection() {
 
   // category รับข้อมูลมาจาก getPostsData(selectedCategory)
   // filter category จาก select ตรงนี้
+
   const fetchPosts = async (category, pageNumber, append = false) => {
     setIsLoading(true); // เริ่ม loading
-
     try {
       const params = {
         page: pageNumber,
         limit: 6,
       };
-
       // Highlight แสดงทุก category
       if (category !== "Highlight") {
         params.category = category;
       }
-
       const response = await axios.get(
         "https://blog-post-project-api.vercel.app/posts",
         { params },
       );
-
       // แยกการแสดงผลของหน้าแรก กับ หน้าถัดไปเพราะเจอปัญหาการแสดงผลของหน้าแรก
       if (append) {
         setBlogPosts((prevPosts) => [...prevPosts, ...response.data.posts]);
       } else {
         setBlogPosts(response.data.posts);
       }
-
       // ตรวจสอบว่ามีข้อมูลต่อไหม ถ้าไม่มีข้อมูลต่อไปจะไม่แสดงปุ่ม View more
       setHasMore(response.data.currentPage < response.data.totalPages);
-
     } catch (error) {
       console.error("Error fetching posts:", error);
       setHasMore(false);
@@ -79,7 +74,7 @@ export function ArticleSection() {
   useEffect(() => {
     if (!searchQuery.trim()) {
       setSearchResults([]);
-      setShowSearchResults(false);
+      setShowSearchDropdown(false);
       return;
     }
 
@@ -87,10 +82,10 @@ export function ArticleSection() {
       try {
         const response = await axios.get(
           "https://blog-post-project-api.vercel.app/posts",
-          { params: { keyword: searchQuery, limit: 20 } },
+          { params: { keyword: searchQuery, limit: 20 } },  // dropdown ของ search bar มี limit 20 ตัว
         );
         setSearchResults(response.data.posts);
-        setShowSearchResults(true);
+        setShowSearchDropdown(true);
       } catch (error) {
         console.error("Error searching posts:", error);
       }
@@ -107,24 +102,44 @@ export function ArticleSection() {
       year: "numeric",
     });
 
-  const handleSearchFocus = () => {
-    if (searchQuery.trim() && searchResults.length > 0) {
-      setShowSearchResults(true);
-    }
+  const handleSearchBlur = () => {
+    setShowSearchDropdown(false);
   };
 
-  const handleCloseSearchResults = () => {
-    setShowSearchResults(false);
-  };
+  const hasSearchResults =
+    showSearchDropdown &&
+    searchQuery.trim().length > 0 &&
+    searchResults.length > 0;
 
-  const searchBarProps = {
-    value: searchQuery,
-    onChange: setSearchQuery,
-    results: searchResults,
-    showResults: showSearchResults,
-    onFocus: handleSearchFocus,
-    onCloseResults: handleCloseSearchResults,
-  };
+  const articleSearch = (
+    <div className="relative w-full shrink-0 lg:w-[360px]">
+      <SearchBar
+        value={searchQuery}
+        onChange={setSearchQuery}
+        onBlur={handleSearchBlur}
+        hasResults={hasSearchResults}
+      />
+
+      {hasSearchResults && (
+        <ul
+          id="search-results"
+          className="absolute top-full z-20 mt-2 max-h-[320px] w-full overflow-y-auto rounded-xl border border-stone-200 bg-white shadow-lg"
+        >
+          {searchResults.map((post) => (
+            <li key={post.id}>
+              <Link
+                to={`/posts/${post.id}`}
+                onMouseDown={(e) => e.preventDefault()}
+                className="block truncate px-4 py-3 text-[16px] text-[#26231e] hover:bg-[#EFEEEB]"
+              >
+                {post.title}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
 
   return (
     <section className="mx-auto flex w-full max-w-[1400px] flex-col gap-10 px-4 py-10">
@@ -150,13 +165,11 @@ export function ArticleSection() {
             </button>
           ))}
         </nav>
-        <div className="hidden lg:block">
-          <SearchBar {...searchBarProps} />
-        </div>
+        <div className="hidden lg:block">{articleSearch}</div>
 
         {/* category filter bar of mobile*/}
         <div className="flex w-full flex-col gap-4 lg:hidden">
-          <SearchBar {...searchBarProps} />
+          {articleSearch}
 
           <Field className="gap-2">
             <FieldLabel className="text-[16px] font-medium text-stone-500">
