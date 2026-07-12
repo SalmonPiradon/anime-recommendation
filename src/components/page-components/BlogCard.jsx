@@ -1,31 +1,30 @@
 export function BlogCard(props) {
-
-  const {image, category, title, description, author, date } = props;
+  const { image, category, title, description, author, date } = props;
 
   return (
     <div className="flex flex-col gap-4">
       <div className="relative h-[212px] sm:h-[360px]">
         <img
-          className="w-full h-full object-cover rounded-md"
+          className="h-full w-full rounded-md object-cover"
           src={image}
           alt={title}
         />
       </div>
       <div className="flex flex-col">
         <div className="flex">
-          <span className="bg-green-200 rounded-full px-3 py-1 text-sm font-semibold text-green-600 mb-2">
+          <span className="mb-2 rounded-full bg-green-200 px-3 py-1 text-sm font-semibold text-green-600">
             {category}
           </span>
         </div>
-        <h2 className="text-start font-bold text-xl mb-2 line-clamp-2 hover:underline">
+        <h2 className="mb-2 line-clamp-2 text-start text-xl font-bold hover:underline">
           {title}
         </h2>
-        <p className="text-muted-foreground text-sm mb-4 grow line-clamp-3">
+        <p className="text-muted-foreground mb-4 grow line-clamp-3 text-sm">
           {description}
         </p>
         <div className="flex items-center text-sm">
           <img
-            className="w-8 h-8 rounded-full mr-2"
+            className="mr-2 h-8 w-8 rounded-full"
             src="/image/author-pic.jpg"
             alt={author}
           />
