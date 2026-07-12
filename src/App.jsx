@@ -8,6 +8,7 @@ import ResetPasswordPage from "./pages/ResetPasswordPage"
 import AdminArticlePage from "./pages/admin/AdminArticlePage"
 import AdminArticleFormPage from "./pages/admin/AdminArticleFormPage"
 import AdminCategoryPage from "./pages/admin/AdminCategoryPage"
+import AdminCategoryFormPage from "./pages/admin/AdminCategoryFormPage"
 import AdminProfilePage from "./pages/admin/AdminProfilePage"
 import AdminNotificationPage from "./pages/admin/AdminNotificationPage"
 import AdminResetPasswordPage from "./pages/admin/AdminResetPasswordPage"
@@ -35,6 +36,8 @@ function App() {
           <Route path="/admin/articles/create" element={<AdminArticleFormPage />} />
           <Route path="/admin/articles/edit/:id" element={<AdminArticleFormPage />} />
           <Route path="/admin/categories" element={<AdminCategoryPage />} />
+          <Route path="/admin/categories/create" element={<AdminCategoryFormPage />} />
+          <Route path="/admin/categories/edit/:id" element={<AdminCategoryFormPage />} />
           <Route path="/admin/profile" element={<AdminProfilePage />} />
           <Route path="/admin/notifications" element={<AdminNotificationPage />} />
           <Route path="/admin/reset-password" element={<AdminResetPasswordPage />} />
