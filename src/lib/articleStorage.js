@@ -1,5 +1,7 @@
 import axios from "axios";
 
+import { getCategoryNames } from "./categoryStorage";
+
 // เก็บบทความใน localStorage
 // ครั้งแรกจะดึงโพสต์จริงจาก API (~30 บทความ) มาเก็บไว้
 // จากนั้น create / edit / delete จะทำงานบน localStorage
@@ -11,7 +13,12 @@ const SEED_VERSION = "api-v1";
 
 const API_URL = "https://blog-post-project-api.vercel.app/posts";
 
-// หมวดหมู่ที่ใช้ในฟอร์มและตัวกรอง
+// ดึงชื่อหมวดหมู่จาก categoryStorage (สร้าง/แก้ในหน้า Category management ได้)
+export function getArticleCategories() {
+  return getCategoryNames();
+}
+
+// เก็บไว้เพื่อโค้ดเก่าที่ยัง import ARTICLE_CATEGORIES
 export const ARTICLE_CATEGORIES = ["Cat", "Inspiration", "General"];
 
 // แปลงข้อมูลจาก API → รูปแบบที่หน้า admin ใช้

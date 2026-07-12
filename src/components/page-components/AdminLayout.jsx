@@ -21,7 +21,7 @@ function getSidebarLinkClassName(isActive) {
   }`;
 }
 
-export function AdminLayout({ pageTitle, children }) {
+export function AdminLayout({ pageTitle, headerAction, children }) {
   const session = useAuthSession();
   const navigate = useNavigate();
 
@@ -115,10 +115,15 @@ export function AdminLayout({ pageTitle, children }) {
 
       {/* เนื้อหาหลักของแต่ละหน้า admin */}
       <main className="flex-1 px-8 py-10">
-        {pageTitle && (
-          <h1 className="mb-8 text-[32px] font-semibold text-[#26231e]">
-            {pageTitle}
-          </h1>
+        {(pageTitle || headerAction) && (
+          <header className="mb-8 flex items-center justify-between gap-4">
+            {pageTitle && (
+              <h1 className="text-[32px] font-semibold text-[#26231e]">
+                {pageTitle}
+              </h1>
+            )}
+            {headerAction}
+          </header>
         )}
         {children}
       </main>

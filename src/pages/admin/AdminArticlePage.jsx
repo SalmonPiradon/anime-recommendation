@@ -14,8 +14,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  ARTICLE_CATEGORIES,
   deleteArticle,
+  getArticleCategories,
   getArticles,
   loadArticles,
 } from "@/lib/articleStorage";
@@ -191,7 +191,7 @@ function AdminArticlePage() {
             </SelectTrigger>
             <SelectContent position="popper">
               <SelectItem value="All">Category</SelectItem>
-              {ARTICLE_CATEGORIES.map((category) => (
+              {getArticleCategories().map((category) => (
                 <SelectItem key={category} value={category}>
                   {category}
                 </SelectItem>

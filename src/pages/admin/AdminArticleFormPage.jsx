@@ -13,9 +13,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  ARTICLE_CATEGORIES,
   createArticle,
   getArticleById,
+  getArticleCategories,
   updateArticle,
 } from "@/lib/articleStorage";
 import { getSession } from "@/lib/authStorage";
@@ -222,7 +222,7 @@ function AdminArticleFormPage() {
               <SelectValue placeholder="Select category" />
             </SelectTrigger>
             <SelectContent>
-              {ARTICLE_CATEGORIES.map((item) => (
+              {getArticleCategories().map((item) => (
                 <SelectItem key={item} value={item}>
                   {item}
                 </SelectItem>
