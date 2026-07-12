@@ -116,7 +116,7 @@ export function AdminLayout({ pageTitle, headerAction, children }) {
       {/* เนื้อหาหลักของแต่ละหน้า admin */}
       <main className="flex-1 px-8 py-10">
         {(pageTitle || headerAction) && (
-          <header className="mb-8 flex items-center justify-between gap-4">
+          <header className="mb-8 flex items-center justify-between gap-4 border-b border-stone-200 pb-6">
             {pageTitle && (
               <h1 className="text-[32px] font-semibold text-[#26231e]">
                 {pageTitle}
