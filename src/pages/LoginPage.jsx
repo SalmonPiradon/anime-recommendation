@@ -17,7 +17,7 @@ function LoginPage() {
     toast("Your password is incorrect or this email doesn't exist", {
       description: "Please try another password or email",
       classNames: {
-        toast: "!bg-[#EB5164] !w-[400px] !pr-10",
+        toast: "!bg-[#EB5164] !w-[500px] !pr-10",
         title: "!text-white !font-semibold !text-base",
         description: "!text-white/95 !text-sm",
         closeButton:

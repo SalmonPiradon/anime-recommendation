@@ -13,8 +13,6 @@ export function SearchBar({ value, onChange, onBlur, hasResults }) {
         onBlur={onBlur}
         className="h-[50px] bg-white pr-10 placeholder:text-[16px] placeholder:font-medium placeholder:text-[#75716B]"
         aria-label="Search articles"
-        aria-expanded={hasResults}
-        aria-controls={hasResults ? "search-results" : undefined}
       />
       <Search
         className="absolute right-3 top-1/4 size-[24px] text-stone-500"

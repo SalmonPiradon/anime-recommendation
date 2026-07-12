@@ -1,4 +1,4 @@
-import { BlogCard } from "../ui/BlogCard";
+import { BlogCard } from "./BlogCard";
 import { Field, FieldLabel } from "../ui/field";
 import {
   Select,
@@ -117,7 +117,6 @@ export function ArticleSection() {
         value={searchQuery}
         onChange={setSearchQuery}
         onBlur={handleSearchBlur}
-        hasResults={hasSearchResults}
       />
 
       {hasSearchResults && (
