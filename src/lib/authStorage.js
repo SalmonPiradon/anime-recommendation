@@ -110,12 +110,22 @@ function updateSession(updates) {
   return true;
 }
 
-export function updateUserProfile(email, { name, username, profilePicture }) {
-  const updated = updateUserByEmail(email, {
+export function updateUserProfile(
+  email,
+  { name, username, profilePicture, bio },
+) {
+  const updates = {
     name,
     username,
     profilePicture,
-  });
+  };
+
+  // bio เป็น optional — ส่งมาเฉพาะตอนมีค่า (เช่นหน้า admin profile)
+  if (bio !== undefined) {
+    updates.bio = bio;
+  }
+
+  const updated = updateUserByEmail(email, updates);
 
   if (!updated) {
     return false;
