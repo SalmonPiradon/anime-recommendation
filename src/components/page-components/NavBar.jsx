@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ChevronDown, LogOutIcon, SettingsIcon, UserIcon } from "lucide-react";
+import { ChevronDown, LayoutDashboard, LogOutIcon, RotateCcw, UserIcon } from "lucide-react";
 
 import { getProfilePicture, logoutUser } from "../../lib/authStorage";
 import { useAuthSession } from "../../hooks/useAuthSession";
@@ -88,8 +88,17 @@ export function NavBar() {
                     className="flex cursor-pointer items-center gap-2 text-[16px] font-medium text-[#43403B]"
                   >
                     <Link to="/reset-password">
-                      <SettingsIcon />
+                      <RotateCcw />
                       Reset password
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    asChild
+                    className="flex cursor-pointer items-center gap-2 text-[16px] font-medium text-[#43403B]"
+                  >
+                    <Link to="/admin/articles">
+                      <LayoutDashboard />
+                      Admin panel
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
@@ -195,8 +204,16 @@ export function NavBar() {
                   to="/reset-password"
                   className={menuItemClassName}
                 >
-                  <SettingsIcon className="size-5 shrink-0" aria-hidden="true" />
+                  <RotateCcw className="size-5 shrink-0" aria-hidden="true" />
                   Reset password
+                </Link>
+
+                <Link
+                  to="/admin/articles"
+                  className={menuItemClassName}
+                >
+                  <LayoutDashboard className="size-5 shrink-0" aria-hidden="true" />
+                  Admin panel
                 </Link>
 
                 <hr className="my-2 border-stone-300" />
