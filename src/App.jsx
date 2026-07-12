@@ -6,6 +6,7 @@ import SignupPage from "./pages/SignupPage"
 import ProfilePage from "./pages/ProfilePage"
 import ResetPasswordPage from "./pages/ResetPasswordPage"
 import AdminArticlePage from "./pages/admin/AdminArticlePage"
+import AdminArticleFormPage from "./pages/admin/AdminArticleFormPage"
 import AdminCategoryPage from "./pages/admin/AdminCategoryPage"
 import AdminProfilePage from "./pages/admin/AdminProfilePage"
 import AdminNotificationPage from "./pages/admin/AdminNotificationPage"
@@ -31,6 +32,8 @@ function App() {
           {/* หน้า admin */}
           <Route path="/admin" element={<Navigate to="/admin/articles" replace />} />
           <Route path="/admin/articles" element={<AdminArticlePage />} />
+          <Route path="/admin/articles/create" element={<AdminArticleFormPage />} />
+          <Route path="/admin/articles/edit/:id" element={<AdminArticleFormPage />} />
           <Route path="/admin/categories" element={<AdminCategoryPage />} />
           <Route path="/admin/profile" element={<AdminProfilePage />} />
           <Route path="/admin/notifications" element={<AdminNotificationPage />} />
