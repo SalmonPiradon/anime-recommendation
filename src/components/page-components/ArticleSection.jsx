@@ -15,7 +15,7 @@ import axios from "axios";
 import { Link } from "react-router-dom";
 
 export function ArticleSection() {
-  const categories = ["Highlight", "Cat", "Inspiration", "General"];
+  const [categories, setCategories] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState("Highlight");
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
@@ -25,9 +25,27 @@ export function ArticleSection() {
   const [hasMore, setHasMore] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
 
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
+  // ดึงหมวดหมู่จาก API
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const response = await axios.get(`${API_BASE_URL}/categories`);
+        const list = Array.isArray(response.data)
+          ? response.data
+          : response.data?.categories || [];
+        setCategories(list);
+      } catch (error) {
+        console.error("Error fetching categories:", error);
+      }
+    };
+
+    fetchCategories();
+  }, []);
+
   // category รับข้อมูลมาจาก getPostsData(selectedCategory)
   // filter category จาก select ตรงนี้
-
   const fetchPosts = async (category, pageNumber, append = false) => {
     setIsLoading(true); // เริ่ม loading
     try {
@@ -40,7 +58,7 @@ export function ArticleSection() {
         params.category = category;
       }
       const response = await axios.get(
-        "https://blog-post-project-api.vercel.app/posts",
+        `${API_BASE_URL}/posts`,
         { params },
       );
       // แยกการแสดงผลของหน้าแรก กับ หน้าถัดไปเพราะเจอปัญหาการแสดงผลของหน้าแรก
@@ -81,7 +99,7 @@ export function ArticleSection() {
     const timer = setTimeout(async () => {
       try {
         const response = await axios.get(
-          "https://blog-post-project-api.vercel.app/posts",
+          `${API_BASE_URL}/posts`,
           { params: { keyword: searchQuery, limit: 20 } },  // dropdown ของ search bar มี limit 20 ตัว
         );
         setSearchResults(response.data.posts);
@@ -149,18 +167,29 @@ export function ArticleSection() {
       {/* category filter bar of PC */}
       <div className="flex w-full flex-col items-center justify-between rounded-2xl bg-[#EFEEEB] px-6 py-4 lg:flex-row">
         <nav className="hidden gap-10 lg:flex">
+          <button
+            type="button"
+            className={`cursor-pointer rounded-md px-4 py-3 text-[16px] font-medium text-[#75716B] ${
+              selectedCategory === "Highlight"
+                ? "bg-[#DAD6D1]"
+                : "hover:bg-[white]"
+            }`}
+            onClick={() => setSelectedCategory("Highlight")}
+          >
+            Highlight
+          </button>
           {categories.map((category) => (
             <button
-              key={category}
+              key={category.id}
               type="button"
               className={`cursor-pointer rounded-md px-4 py-3 text-[16px] font-medium text-[#75716B] ${
-                selectedCategory === category
+                selectedCategory === category.name
                   ? "bg-[#DAD6D1]"
                   : "hover:bg-[white]"
               }`}
-              onClick={() => setSelectedCategory(category)}
+              onClick={() => setSelectedCategory(category.name)}
             >
-              {category}
+              {category.name}
             </button>
           ))}
         </nav>
@@ -182,9 +211,10 @@ export function ArticleSection() {
                 <SelectValue placeholder="Select category" />
               </SelectTrigger>
               <SelectContent className="text-[16px] font-medium text-[#75716B]">
+                <SelectItem value="Highlight">Highlight</SelectItem>
                 {categories.map((category) => (
-                  <SelectItem key={category} value={category}>
-                    {category}
+                  <SelectItem key={category.id} value={category.name}>
+                    {category.name}
                   </SelectItem>
                 ))}
               </SelectContent>

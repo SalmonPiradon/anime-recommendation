@@ -2,8 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ChevronDown, LayoutDashboard, LogOutIcon, RotateCcw, UserIcon } from "lucide-react";
 
-import { getProfilePicture, logoutUser } from "../../lib/authStorage";
-import { useAuthSession } from "../../hooks/useAuthSession";
+import { useAuth } from "../../contexts/authentication";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,15 +14,19 @@ import {
 const menuItemClassName =
   "flex items-center gap-3 px-4 py-3 text-[16px] font-medium text-[#43403B]";
 
+const DEFAULT_PROFILE_PIC = "/image/default-profile-pic.png";
+
 export function NavBar() {
-  const session = useAuthSession();
-  const isLoggedIn = Boolean(session);
-  const profilePicture = getProfilePicture(session);
+  const { state, logout, isAuthenticated } = useAuth();
+  const user = state.user;
+  const isLoggedIn = isAuthenticated;
+  const profilePicture = user?.profilePic || DEFAULT_PROFILE_PIC;
+  const displayName = user?.name || "";
   const navigate = useNavigate();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const handleLogout = () => {
-    logoutUser();
+    logout();
     setIsMenuOpen(false);
     navigate("/");
   };
@@ -60,11 +63,11 @@ export function NavBar() {
                   >
                     <img
                       src={profilePicture}
-                      alt={session.name}
+                      alt={displayName}
                       className="size-12 rounded-full object-cover"
                     />
                     <span className="text-[16px] font-medium text-[#26231e]">
-                      {session.name}
+                      {displayName}
                     </span>
                     <ChevronDown
                       className="size-4 text-stone-500"
@@ -170,11 +173,11 @@ export function NavBar() {
                   <div className="flex items-center gap-3">
                     <img
                       src={profilePicture}
-                      alt={session.name}
+                      alt={displayName}
                       className="size-12 rounded-full object-cover"
                     />
                     <span className="text-[16px] font-medium text-[#26231e]">
-                      {session.name}
+                      {displayName}
                     </span>
                   </div>
 

@@ -1,43 +1,48 @@
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { useState } from "react";
 import { toast } from "sonner";
 
 import { NavBar } from "../components/page-components/NavBar";
 import { Input } from "@/components/ui/input";
-import { loginUser } from "@/lib/authStorage";
+import { useAuth } from "../contexts/authentication";
 
 function LoginPage() {
-  const navigate = useNavigate();
+  // ดึงฟังก์ชัน login จาก AuthContext
+  const { login } = useAuth();
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  // มี error จาก backend หรือไม่ (ใช้เปลี่ยนขอบ input เป็นแดง)
   const [hasError, setHasError] = useState(false);
 
-  const showLoginError = () => {
+  // แสดง toast สีแดงตามดีไซน์ (ใช้ข้อความจาก backend ถ้ามี)
+  const showLoginError = (message) => {
     setHasError(true);
-    toast("Your password is incorrect or this email doesn't exist", {
-      description: "Please try another password or email",
-      classNames: {
-        toast: "!bg-[#EB5164] !w-[500px] !pr-10",
-        title: "!text-white !font-semibold !text-base",
-        description: "!text-white/95 !text-sm",
-        closeButton:
-          "!left-auto !right-4 !top-4 !transform-none !size-7 [&>svg]:!size-5 !border-none !bg-transparent !text-white hover:!bg-white/20",
+    toast(
+      message || "Your password is incorrect or this email doesn't exist",
+      {
+        description: "Please try another password or email",
+        classNames: {
+          toast: "!bg-[#EB5164] !w-[500px] !pr-10",
+          title: "!text-white !font-semibold !text-base",
+          description: "!text-white/95 !text-sm",
+          closeButton:
+            "!left-auto !right-4 !top-4 !transform-none !size-7 [&>svg]:!size-5 !border-none !bg-transparent !text-white hover:!bg-white/20",
+        },
       },
-    });
+    );
   };
 
-  const handleSubmit = (e) => {
+  // กด Log in → เรียก API ถ้าพลาดให้เตือน
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setHasError(false);
 
-    const user = loginUser(email, password);
-
-    if (!user) {
-      showLoginError();
-      return;
+    try {
+      await login({ email, password });
+    } catch (error) {
+      showLoginError(error.response?.data?.error);
     }
-
-    navigate("/");
   };
 
   const inputClassName = `h-[48px] bg-white text-[16px] text-[#26231e] placeholder:text-[#75716B] ${

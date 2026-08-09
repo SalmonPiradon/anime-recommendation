@@ -1,8 +1,10 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import axios from "axios";
 import { toast } from "sonner";
 
 import { AdminLayout } from "../../components/page-components/AdminLayout";
+import { LoadingState } from "../../components/page-components/LoadingState";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
@@ -12,39 +14,44 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useAuth } from "../../contexts/authentication";
 import {
-  createArticle,
-  getArticleById,
-  getArticleCategories,
-  updateArticle,
-} from "@/lib/articleStorage";
-import { getSession } from "@/lib/authStorage";
-import { successToastClassNames } from "@/lib/toastStyles";
+  errorToastClassNames,
+  successToastClassNames,
+} from "@/lib/toastStyles";
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
+// status_id ตาม backend: 1 = draft, 2 = publish
+const STATUS_DRAFT = 1;
+const STATUS_PUBLISHED = 2;
 
 // หน้านี้ใช้ทั้ง Create และ Edit
 // - /admin/articles/create  → สร้างใหม่
 // - /admin/articles/edit/:id → แก้ไขของเดิม
 function AdminArticleFormPage() {
   const navigate = useNavigate();
-  const { id } = useParams(); // มี id = โหมดแก้ไข
+  const { id } = useParams();
   const isEditMode = Boolean(id);
 
-  const session = getSession();
-  const existingArticle = isEditMode ? getArticleById(id) : null;
-
-  // ref สำหรับ input แบบซ่อน (ใช้เปิดเครื่องเลือกไฟล์)
+  const { state } = useAuth();
   const fileInputRef = useRef(null);
 
-  // ค่าในฟอร์ม
-  const [thumbnail, setThumbnail] = useState(existingArticle?.thumbnail || "");
-  const [category, setCategory] = useState(existingArticle?.category || "");
-  const [title, setTitle] = useState(existingArticle?.title || "");
-  const [introduction, setIntroduction] = useState(
-    existingArticle?.introduction || "",
-  );
-  const [content, setContent] = useState(existingArticle?.content || "");
+  const [isLoading, setIsLoading] = useState(isEditMode);
+  const [notFound, setNotFound] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
-  // ข้อความ error ของแต่ละช่อง
+  const [categories, setCategories] = useState([]);
+  const [imageFile, setImageFile] = useState({});
+  const [existingThumbnail, setExistingThumbnail] = useState("");
+  const [post, setPost] = useState({
+    title: "",
+    description: "",
+    content: "",
+    category: "",
+    category_id: null,
+  });
+
   const [errors, setErrors] = useState({
     category: "",
     title: "",
@@ -52,29 +59,114 @@ function AdminArticleFormPage() {
     content: "",
   });
 
-  // ชื่อผู้เขียนอ่านอย่างเดียวจาก session
-  const authorName = session?.name || existingArticle?.author || "Admin";
+  const authorName = state.user?.name || "Admin";
 
-  // เปิดหน้าต่างเลือกไฟล์รูป
+  useEffect(() => {
+    const loadFormData = async () => {
+      try {
+        if (isEditMode) {
+          setIsLoading(true);
+        }
+
+        const categoriesResponse = await axios.get(
+          `${API_BASE_URL}/categories`,
+        );
+        const categoryData = Array.isArray(categoriesResponse.data)
+          ? categoriesResponse.data
+          : categoriesResponse.data?.categories || [];
+
+        setCategories(categoryData);
+
+        if (isEditMode) {
+          const articleResponse = await axios.get(
+            `${API_BASE_URL}/posts/admin/${id}`,
+          );
+          const article = articleResponse.data;
+
+          const categoryId =
+            article.category_id != null
+              ? String(article.category_id)
+              : categoryData.find((cat) => cat.name === article.category)?.id ||
+                null;
+
+          setPost({
+            title: article.title || "",
+            description: article.description || "",
+            content: article.content || "",
+            category: article.category || "",
+            category_id: categoryId,
+          });
+          setExistingThumbnail(article.image || "");
+        }
+      } catch (error) {
+        console.error("Error loading article form data:", error);
+        if (isEditMode) {
+          setNotFound(true);
+        }
+      } finally {
+        if (isEditMode) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    loadFormData();
+  }, [id, isEditMode]);
+
   const handleUploadClick = () => {
     fileInputRef.current?.click();
   };
 
-  // อ่านไฟล์รูปแล้วแปลงเป็น base64 เก็บใน state
-  const handleFileChange = (e) => {
-    const file = e.target.files?.[0];
+  const handleFileChange = (event) => {
+    const file = event.target.files?.[0];
     if (!file) {
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      setThumbnail(reader.result);
-    };
-    reader.readAsDataURL(file);
+    const allowedTypes = ["image/jpeg", "image/png", "image/gif", "image/webp"];
+    if (!allowedTypes.includes(file.type)) {
+      toast("Failed to upload file", {
+        description: "Please upload a valid image file (JPEG, PNG, GIF, WebP).",
+        classNames: errorToastClassNames,
+      });
+      return;
+    }
+
+    const maxSize = 5 * 1024 * 1024;
+    if (file.size > maxSize) {
+      toast("Failed to upload file", {
+        description:
+          "The file is too large. Please upload an image smaller than 5MB.",
+        classNames: errorToastClassNames,
+      });
+      return;
+    }
+
+    setImageFile({ file });
   };
 
-  // ตรวจว่ากรอกครบไหมก่อนบันทึก
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setPost((prevData) => ({
+      ...prevData,
+      [name]: value,
+    }));
+    setErrors((prev) => ({
+      ...prev,
+      [name === "description" ? "introduction" : name]: "",
+    }));
+  };
+
+  const handleCategoryChange = (value) => {
+    const selectedCategory = categories.find((cat) => cat.name === value);
+    setPost((prevData) => ({
+      ...prevData,
+      category: value,
+      category_id: selectedCategory?.id || null,
+    }));
+    setErrors((prev) => ({ ...prev, category: "" }));
+  };
+
   const validateForm = () => {
     const newErrors = {
       category: "",
@@ -83,79 +175,116 @@ function AdminArticleFormPage() {
       content: "",
     };
 
-    if (!category) {
+    if (!post.category_id) {
       newErrors.category = "Please select a category";
     }
 
-    if (!title.trim()) {
+    if (!post.title.trim()) {
       newErrors.title = "Title is required";
     }
 
-    if (!introduction.trim()) {
+    if (!post.description.trim()) {
       newErrors.introduction = "Introduction is required";
-    } else if (introduction.trim().length > 120) {
+    } else if (post.description.trim().length > 120) {
       newErrors.introduction = "Introduction must be at most 120 characters";
     }
 
-    if (!content.trim()) {
+    if (!post.content.trim()) {
       newErrors.content = "Content is required";
     }
 
-    setErrors(newErrors);
+    if (!isEditMode && !imageFile.file) {
+      toast("Image is required", {
+        description: "Please upload a thumbnail image.",
+        classNames: errorToastClassNames,
+      });
+      setErrors(newErrors);
+      return false;
+    }
 
-    // ถ้าไม่มี error เลย → ผ่าน
+    setErrors(newErrors);
     return !Object.values(newErrors).some(Boolean);
   };
 
-  // บันทึกบทความ (draft หรือ published)
-  const handleSave = (status) => {
+  // statusId: 1 = draft, 2 = publish
+  const handleSave = async (postStatusId) => {
     if (!validateForm()) {
       return;
     }
 
-    const articleData = {
-      title: title.trim(),
-      category,
-      status, // "Draft" หรือ "Published"
-      author: authorName,
-      introduction: introduction.trim(),
-      content: content.trim(),
-      thumbnail,
-    };
+    setIsSaving(true);
 
-    if (isEditMode) {
-      // โหมดแก้ไข → อัปเดตของเดิม
-      updateArticle(id, articleData);
-      toast("Saved article", {
-        description:
-          status === "Published"
-            ? "Your article has been published."
-            : "Your article has been saved as draft.",
-        classNames: successToastClassNames,
-      });
-    } else {
-      // โหมดสร้างใหม่
-      createArticle(articleData);
-      toast(
-        status === "Published"
-          ? "Create article and published"
-          : "Create article and saved as draft",
-        {
+    try {
+      if (isEditMode) {
+        if (imageFile.file) {
+          const formData = new FormData();
+          formData.append("title", post.title.trim());
+          formData.append("category_id", Number(post.category_id));
+          formData.append("description", post.description.trim());
+          formData.append("content", post.content.trim());
+          formData.append("status_id", Number(postStatusId));
+          formData.append("imageFile", imageFile.file);
+          await axios.put(`${API_BASE_URL}/posts/${id}`, formData);
+        } else {
+          await axios.put(`${API_BASE_URL}/posts/${id}`, {
+            title: post.title.trim(),
+            image: existingThumbnail,
+            category_id: Number(post.category_id),
+            description: post.description.trim(),
+            content: post.content.trim(),
+            status_id: Number(postStatusId),
+          });
+        }
+
+        toast("Saved article", {
           description:
-            status === "Published"
-              ? "Your article is now live."
-              : "You can publish it later.",
+            postStatusId === STATUS_PUBLISHED
+              ? "Your article has been successfully published."
+              : "Your article has been successfully saved as draft.",
           classNames: successToastClassNames,
-        },
-      );
-    }
+        });
+      } else {
+        const formData = new FormData();
+        formData.append("title", post.title.trim());
+        formData.append("category_id", Number(post.category_id));
+        formData.append("description", post.description.trim());
+        formData.append("content", post.content.trim());
+        formData.append("status_id", Number(postStatusId));
+        formData.append("imageFile", imageFile.file);
+        await axios.post(`${API_BASE_URL}/posts`, formData);
 
-    // กลับไปหน้ารายการบทความ
-    navigate("/admin/articles");
+        toast("Created article successfully", {
+          description:
+            postStatusId === STATUS_PUBLISHED
+              ? "Your article has been successfully published."
+              : "Your article has been successfully saved as draft.",
+          classNames: successToastClassNames,
+        });
+      }
+
+      navigate("/admin/articles");
+    } catch (error) {
+      toast("Failed to create article", {
+        description:
+          error.response?.data?.message ||
+          error.response?.data?.error ||
+          "Something went wrong while trying to save article. Please try again later.",
+        classNames: errorToastClassNames,
+      });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  // ถ้าเข้าโหมด edit แต่หาบทความไม่เจอ
-  if (isEditMode && !existingArticle) {
+  if (isEditMode && isLoading) {
+    return (
+      <AdminLayout pageTitle="Edit article">
+        <LoadingState />
+      </AdminLayout>
+    );
+  }
+
+  if (isEditMode && notFound) {
     return (
       <AdminLayout pageTitle="Edit article">
         <p className="text-[16px] text-[#75716B]">Article not found.</p>
@@ -169,17 +298,22 @@ function AdminArticleFormPage() {
         className="flex max-w-[720px] flex-col gap-6"
         onSubmit={(e) => e.preventDefault()}
       >
-        {/* อัปโหลดรูป thumbnail */}
         <Field className="gap-3">
           <FieldLabel className="text-[16px] font-medium text-[#75716B]">
             Thumbnail image
           </FieldLabel>
 
           <div className="flex items-center gap-4">
-            {thumbnail ? (
+            {imageFile.file ? (
               <img
-                src={thumbnail}
+                src={URL.createObjectURL(imageFile.file)}
                 alt="Article thumbnail preview"
+                className="size-[120px] rounded-xl object-cover"
+              />
+            ) : existingThumbnail ? (
+              <img
+                src={existingThumbnail}
+                alt="Current article thumbnail"
                 className="size-[120px] rounded-xl object-cover"
               />
             ) : (
@@ -206,25 +340,18 @@ function AdminArticleFormPage() {
           </div>
         </Field>
 
-        {/* เลือกหมวดหมู่ */}
         <Field className="gap-2">
           <FieldLabel className="text-[16px] font-medium text-[#75716B]">
             Category
           </FieldLabel>
-          <Select
-            value={category}
-            onValueChange={(value) => {
-              setCategory(value);
-              setErrors((prev) => ({ ...prev, category: "" }));
-            }}
-          >
+          <Select value={post.category} onValueChange={handleCategoryChange}>
             <SelectTrigger className="h-[48px]! w-full bg-white text-[16px] text-[#26231e]">
               <SelectValue placeholder="Select category" />
             </SelectTrigger>
             <SelectContent>
-              {getArticleCategories().map((item) => (
-                <SelectItem key={item} value={item}>
-                  {item}
+              {categories.map((cat) => (
+                <SelectItem key={cat.id} value={cat.name}>
+                  {cat.name}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -234,7 +361,6 @@ function AdminArticleFormPage() {
           )}
         </Field>
 
-        {/* ชื่อผู้เขียน (แก้ไม่ได้) */}
         <Field className="gap-2">
           <FieldLabel className="text-[16px] font-medium text-[#75716B]">
             Author name
@@ -246,17 +372,14 @@ function AdminArticleFormPage() {
           />
         </Field>
 
-        {/* หัวข้อบทความ */}
         <Field className="gap-2">
           <FieldLabel className="text-[16px] font-medium text-[#75716B]">
             Title
           </FieldLabel>
           <Input
-            value={title}
-            onChange={(e) => {
-              setTitle(e.target.value);
-              setErrors((prev) => ({ ...prev, title: "" }));
-            }}
+            name="title"
+            value={post.title}
+            onChange={handleInputChange}
             placeholder="Article title"
             className="h-[48px] bg-white text-[16px]"
           />
@@ -265,41 +388,35 @@ function AdminArticleFormPage() {
           )}
         </Field>
 
-        {/* คำโปรยสั้นๆ สูงสุด 120 ตัวอักษร */}
         <Field className="gap-2">
           <FieldLabel className="text-[16px] font-medium text-[#75716B]">
             Introduction (max 120 characters)
           </FieldLabel>
           <textarea
-            value={introduction}
-            onChange={(e) => {
-              setIntroduction(e.target.value);
-              setErrors((prev) => ({ ...prev, introduction: "" }));
-            }}
+            name="description"
+            value={post.description}
+            onChange={handleInputChange}
             maxLength={120}
             rows={3}
             placeholder="Short introduction"
             className="w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-[16px] text-[#26231e] outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
           />
           <p className="text-[14px] text-[#75716B]">
-            {introduction.length}/120
+            {post.description.length}/120
           </p>
           {errors.introduction && (
             <p className="text-[14px] text-[#EB5164]">{errors.introduction}</p>
           )}
         </Field>
 
-        {/* เนื้อหาบทความ */}
         <Field className="gap-2">
           <FieldLabel className="text-[16px] font-medium text-[#75716B]">
             Content
           </FieldLabel>
           <textarea
-            value={content}
-            onChange={(e) => {
-              setContent(e.target.value);
-              setErrors((prev) => ({ ...prev, content: "" }));
-            }}
+            name="content"
+            value={post.content}
+            onChange={handleInputChange}
             rows={10}
             placeholder="Write your article content here..."
             className="w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-[16px] text-[#26231e] outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
@@ -309,21 +426,22 @@ function AdminArticleFormPage() {
           )}
         </Field>
 
-        {/* ปุ่มบันทึก */}
         <div className="flex flex-wrap gap-3 pt-2">
           <button
             type="button"
-            onClick={() => handleSave("Draft")}
-            className="cursor-pointer rounded-full border border-stone-500 bg-white px-8 py-3 text-[16px] font-medium text-[#26231e]"
+            disabled={isSaving}
+            onClick={() => handleSave(STATUS_DRAFT)}
+            className="cursor-pointer rounded-full border border-stone-500 bg-white px-8 py-3 text-[16px] font-medium text-[#26231e] disabled:cursor-not-allowed disabled:opacity-50"
           >
             Save as draft
           </button>
           <button
             type="button"
-            onClick={() => handleSave("Published")}
-            className="cursor-pointer rounded-full bg-[#26231e] px-8 py-3 text-[16px] font-medium text-white"
+            disabled={isSaving}
+            onClick={() => handleSave(STATUS_PUBLISHED)}
+            className="cursor-pointer rounded-full bg-[#26231e] px-8 py-3 text-[16px] font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {isEditMode ? "Save and publish" : "Save and publish"}
+            {isSaving ? "Saving..." : "Save and publish"}
           </button>
         </div>
       </form>

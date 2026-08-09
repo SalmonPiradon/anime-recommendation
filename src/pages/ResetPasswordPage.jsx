@@ -1,14 +1,16 @@
 import { useState } from "react";
+import axios from "axios";
 import { X } from "lucide-react";
 import { toast } from "sonner";
 
 import { MemberLayout } from "../components/page-components/MemberLayout";
 import { Input } from "@/components/ui/input";
-import { getSessionUser, resetUserPassword } from "@/lib/authStorage";
 import {
   errorToastClassNames,
   successToastClassNames,
 } from "@/lib/toastStyles";
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 function ResetPasswordModal({ isOpen, onClose, onConfirm }) {
   if (!isOpen) {
@@ -56,7 +58,6 @@ function ResetPasswordModal({ isOpen, onClose, onConfirm }) {
 }
 
 function ResetPasswordPage() {
-  const user = getSessionUser();
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -104,47 +105,52 @@ function ResetPasswordPage() {
     setIsModalOpen(true);
   };
 
-  const handleConfirmReset = () => {
-    if (!user) {
-      return;
-    }
+  const handleConfirmReset = async () => {
+    try {
+      // Authorization ถูกแนบโดย jwtInterceptor
+      const response = await axios.put(`${API_BASE_URL}/auth/reset-password`, {
+        oldPassword: currentPassword,
+        newPassword: newPassword,
+      });
 
-    const result = resetUserPassword(
-      user.email,
-      currentPassword,
-      newPassword,
-    );
+      // เก็บ token ใหม่หลังเปลี่ยนรหัส (token เก่าอาจใช้ต่อไม่ได้)
+      if (response.data?.access_token) {
+        localStorage.setItem("token", response.data.access_token);
+      }
 
-    setIsModalOpen(false);
+      setIsModalOpen(false);
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
 
-    if (!result.success) {
-      if (result.error === "current_password") {
+      toast("Password reset", {
+        description: "Your password has been successfully updated",
+        classNames: successToastClassNames,
+      });
+    } catch (error) {
+      setIsModalOpen(false);
+
+      const message =
+        error.response?.data?.error || "";
+
+      // รหัสปัจจุบันผิด → แสดง error ใต้ช่อง
+      if (
+        message.toLowerCase().includes("current") ||
+        message.toLowerCase().includes("incorrect") ||
+        message.toLowerCase().includes("wrong") ||
+        message.toLowerCase().includes("old password")
+      ) {
         setErrors((prev) => ({
           ...prev,
           currentPassword: "Current password is incorrect",
         }));
-        toast("Could not reset password", {
-          description: "Your current password is incorrect",
-          classNames: errorToastClassNames,
-        });
-        return;
       }
 
-      setErrors((prev) => ({
-        ...prev,
-        newPassword: "Password must be at least 6 characters",
-      }));
-      return;
+      toast("Could not reset password", {
+        description: message || "Please try again later.",
+        classNames: errorToastClassNames,
+      });
     }
-
-    setCurrentPassword("");
-    setNewPassword("");
-    setConfirmPassword("");
-
-    toast("Password reset", {
-      description: "Your password has been successfully updated",
-      classNames: successToastClassNames,
-    });
   };
 
   const getInputClassName = (field) =>

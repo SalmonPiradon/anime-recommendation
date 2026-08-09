@@ -1,56 +1,82 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import axios from "axios";
 import { toast } from "sonner";
 
 import { AdminLayout } from "../../components/page-components/AdminLayout";
 import { Input } from "@/components/ui/input";
+import { useAuth } from "../../contexts/authentication";
 import {
-  getSessionUser,
-  isUsernameTaken,
-  updateUserProfile,
-} from "@/lib/authStorage";
-import { successToastClassNames } from "@/lib/toastStyles";
+  errorToastClassNames,
+  successToastClassNames,
+} from "@/lib/toastStyles";
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+const DEFAULT_PROFILE_PIC = "/image/default-profile-pic.png";
 
 // หน้า Profile ของ admin
 // ต่างจาก member ตรงที่มีช่อง Bio (สูงสุด 120 ตัวอักษร)
 function AdminProfilePage() {
-  const user = getSessionUser();
+  const { state, fetchUser } = useAuth();
+  const user = state.user;
   const fileInputRef = useRef(null);
 
-  // ค่าเริ่มต้นดึงจาก user ที่ login อยู่
-  const [name, setName] = useState(user?.name || "");
-  const [username, setUsername] = useState(user?.username || "");
-  const [bio, setBio] = useState(user?.bio || "");
-  const [profilePicture, setProfilePicture] = useState(
-    user?.profilePicture || "",
-  );
+  const [name, setName] = useState("");
+  const [username, setUsername] = useState("");
+  const [bio, setBio] = useState("");
+  const [profilePicture, setProfilePicture] = useState("");
+  const [imageFile, setImageFile] = useState(null);
+  const [isSaving, setIsSaving] = useState(false);
   const [errors, setErrors] = useState({
     name: "",
     username: "",
     bio: "",
   });
 
-  const avatarSrc = profilePicture || "/image/default-profile-pic.png";
+  useEffect(() => {
+    if (!user) {
+      return;
+    }
 
-  // เปิดหน้าต่างเลือกไฟล์รูป
+    setName(user.name || "");
+    setUsername(user.username || "");
+    setBio(user.bio || "");
+    setProfilePicture(user.profilePic || user.profilePicture || "");
+  }, [user]);
+
+  const avatarSrc = profilePicture || DEFAULT_PROFILE_PIC;
+
   const handleUploadClick = () => {
     fileInputRef.current?.click();
   };
 
-  // อ่านไฟล์แล้วแปลงเป็น base64 เก็บใน state
   const handleFileChange = (e) => {
     const file = e.target.files?.[0];
     if (!file) {
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      setProfilePicture(reader.result);
-    };
-    reader.readAsDataURL(file);
+    const allowedTypes = ["image/jpeg", "image/png", "image/gif", "image/webp"];
+    if (!allowedTypes.includes(file.type)) {
+      toast("Invalid file type", {
+        description: "Please upload a valid image file (JPEG, PNG, GIF, WebP).",
+        classNames: errorToastClassNames,
+      });
+      return;
+    }
+
+    const maxSize = 5 * 1024 * 1024;
+    if (file.size > maxSize) {
+      toast("File too large", {
+        description: "Please upload an image smaller than 5MB.",
+        classNames: errorToastClassNames,
+      });
+      return;
+    }
+
+    setImageFile(file);
+    setProfilePicture(URL.createObjectURL(file));
   };
 
-  // ตรวจฟอร์มก่อนบันทึก
   const validateForm = () => {
     const newErrors = { name: "", username: "", bio: "" };
 
@@ -60,8 +86,6 @@ function AdminProfilePage() {
 
     if (!username.trim()) {
       newErrors.username = "Username is required";
-    } else if (user && isUsernameTaken(username, user.email)) {
-      newErrors.username = "Username is already taken";
     }
 
     if (bio.trim().length > 120) {
@@ -72,24 +96,44 @@ function AdminProfilePage() {
     return !Object.values(newErrors).some(Boolean);
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (!validateForm() || !user) {
       return;
     }
 
-    updateUserProfile(user.email, {
-      name: name.trim(),
-      username: username.trim(),
-      profilePicture,
-      bio: bio.trim(),
-    });
+    try {
+      setIsSaving(true);
 
-    toast("Saved profile", {
-      description: "Your profile has been successfully updated",
-      classNames: successToastClassNames,
-    });
+      const formData = new FormData();
+      formData.append("name", name.trim());
+      formData.append("username", username.trim());
+      formData.append("bio", bio.trim());
+
+      if (imageFile) {
+        formData.append("imageFile", imageFile);
+      }
+
+      await axios.put(`${API_BASE_URL}/profile`, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+
+      toast("Saved profile", {
+        description: "Your profile has been successfully updated",
+        classNames: successToastClassNames,
+      });
+
+      setImageFile(null);
+      await fetchUser();
+    } catch {
+      toast("Failed to update profile", {
+        description: "Please try again later.",
+        classNames: errorToastClassNames,
+      });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const getInputClassName = (field) =>
@@ -100,19 +144,18 @@ function AdminProfilePage() {
   return (
     <AdminLayout
       pageTitle="Profile"
-      // ปุ่ม Save อยู่มุมขวาบน ตามดีไซน์
       headerAction={
         <button
           type="submit"
           form="admin-profile-form"
-          className="cursor-pointer rounded-full bg-[#26231e] px-10 py-3 text-[16px] font-medium text-white hover:bg-[#26231e]/90"
+          disabled={isSaving}
+          className="cursor-pointer rounded-full bg-[#26231e] px-10 py-3 text-[16px] font-medium text-white hover:bg-[#26231e]/90 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          Save
+          {isSaving ? "Saving..." : "Save"}
         </button>
       }
     >
       <section className="max-w-[560px]">
-        {/* รูปโปรไฟล์ + ปุ่มอัปโหลด */}
         <div className="mb-8 flex items-center gap-6">
           <img
             src={avatarSrc}
@@ -140,7 +183,6 @@ function AdminProfilePage() {
           className="flex flex-col gap-6"
           onSubmit={handleSubmit}
         >
-          {/* Name */}
           <div className="flex flex-col gap-2">
             <label
               htmlFor="admin-name"
@@ -163,7 +205,6 @@ function AdminProfilePage() {
             )}
           </div>
 
-          {/* Username */}
           <div className="flex flex-col gap-2">
             <label
               htmlFor="admin-username"
@@ -186,7 +227,6 @@ function AdminProfilePage() {
             )}
           </div>
 
-          {/* Email แก้ไม่ได้ แต่แสดงเป็นช่อง input ตามดีไซน์ */}
           <div className="flex flex-col gap-2">
             <label
               htmlFor="admin-email"
@@ -203,7 +243,6 @@ function AdminProfilePage() {
             />
           </div>
 
-          {/* Bio สูงสุด 120 ตัวอักษร */}
           <div className="flex flex-col gap-2">
             <label
               htmlFor="admin-bio"
