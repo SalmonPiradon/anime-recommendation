@@ -1,14 +1,20 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import axios from "axios";
 import { Pencil, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { AdminLayout } from "../../components/page-components/AdminLayout";
+import { LoadingState } from "../../components/page-components/LoadingState";
 import { Input } from "@/components/ui/input";
-import { deleteCategory, getCategories } from "@/lib/categoryStorage";
-import { successToastClassNames } from "@/lib/toastStyles";
+import { loadCategories } from "@/lib/categoryStorage";
+import {
+  errorToastClassNames,
+  successToastClassNames,
+} from "@/lib/toastStyles";
 
-// โมดัลยืนยันก่อนลบ (ลบอย่างเดียวที่ใช้ modal)
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
 function DeleteCategoryModal({ isOpen, categoryName, onClose, onConfirm }) {
   if (!isOpen) {
     return null;
@@ -46,14 +52,35 @@ function DeleteCategoryModal({ isOpen, categoryName, onClose, onConfirm }) {
 }
 
 function AdminCategoryPage() {
-  // รายการ category จาก localStorage
-  const [categories, setCategories] = useState(() => getCategories());
+  const [categories, setCategories] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-
-  // เก็บบทความที่กำลังจะลบ
   const [categoryToDelete, setCategoryToDelete] = useState(null);
 
-  // กรองตามคำค้นหา
+  useEffect(() => {
+    const fetchCategories = async () => {
+      setIsLoading(true);
+      try {
+        const data = await loadCategories();
+        setCategories(data);
+      } catch (error) {
+        console.error("Error loading categories:", error);
+        setCategories([]);
+        toast("Failed to load categories", {
+          description:
+            error.response?.data?.error ||
+            error.response?.data?.message ||
+            "Please try again later.",
+          classNames: errorToastClassNames,
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchCategories();
+  }, []);
+
   const filteredCategories = useMemo(() => {
     const keyword = searchQuery.trim().toLowerCase();
 
@@ -66,26 +93,38 @@ function AdminCategoryPage() {
     );
   }, [categories, searchQuery]);
 
-  // ยืนยันลบ
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
     if (!categoryToDelete) {
       return;
     }
 
-    deleteCategory(categoryToDelete.id);
-    setCategories(getCategories());
-    setCategoryToDelete(null);
+    try {
+      await axios.delete(
+        `${API_BASE_URL}/categories/${categoryToDelete.id}`,
+      );
+      setCategories((prev) =>
+        prev.filter((category) => category.id !== categoryToDelete.id),
+      );
+      setCategoryToDelete(null);
 
-    toast("Deleted category", {
-      description: "The category has been removed.",
-      classNames: successToastClassNames,
-    });
+      toast("Deleted category", {
+        description: "The category has been removed.",
+        classNames: successToastClassNames,
+      });
+    } catch (error) {
+      toast("Failed to delete category", {
+        description:
+          error.response?.data?.error ||
+          error.response?.data?.message ||
+          "Please try again later.",
+        classNames: errorToastClassNames,
+      });
+    }
   };
 
   return (
     <AdminLayout
       pageTitle="Category management"
-      // ปุ่มสร้างอยู่มุมขวาบน ตามดีไซน์ → ไปหน้าเต็ม ไม่ใช่ modal
       headerAction={
         <Link
           to="/admin/categories/create"
@@ -96,7 +135,6 @@ function AdminCategoryPage() {
       }
     >
       <section className="flex flex-col gap-6">
-        {/* ช่องค้นหา */}
         <div className="relative max-w-[360px]">
           <Input
             type="search"
@@ -112,58 +150,60 @@ function AdminCategoryPage() {
           />
         </div>
 
-        {/* ตารางรายการ category */}
-        <div className="overflow-hidden rounded-2xl bg-white">
-          <table className="w-full border-collapse text-left">
-            <thead className="bg-[#F9F8F6] text-[14px] font-medium text-[#75716B]">
-              <tr>
-                <th className="px-6 py-4 font-medium">Category</th>
-                <th className="w-[120px] px-6 py-4 font-medium" />
-              </tr>
-            </thead>
-            <tbody>
-              {filteredCategories.length === 0 ? (
+        {isLoading ? (
+          <LoadingState />
+        ) : (
+          <div className="overflow-hidden rounded-2xl bg-white">
+            <table className="w-full border-collapse text-left">
+              <thead className="bg-[#F9F8F6] text-[14px] font-medium text-[#75716B]">
                 <tr>
-                  <td
-                    colSpan={2}
-                    className="px-6 py-10 text-center text-[16px] text-[#75716B]"
-                  >
-                    No categories found
-                  </td>
+                  <th className="px-6 py-4 font-medium">Category</th>
+                  <th className="w-[120px] px-6 py-4 font-medium" />
                 </tr>
-              ) : (
-                filteredCategories.map((category) => (
-                  <tr
-                    key={category.id}
-                    className="border-t border-stone-200 text-[16px] text-[#26231e]"
-                  >
-                    <td className="px-6 py-4">{category.name}</td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center justify-end gap-3">
-                        {/* แก้ไข → ไปหน้าฟอร์มเต็ม */}
-                        <Link
-                          to={`/admin/categories/edit/${category.id}`}
-                          className="text-[#75716B] hover:text-[#26231e]"
-                          aria-label={`Edit ${category.name}`}
-                        >
-                          <Pencil className="size-5" aria-hidden="true" />
-                        </Link>
-                        <button
-                          type="button"
-                          onClick={() => setCategoryToDelete(category)}
-                          className="cursor-pointer text-[#75716B] hover:text-[#EB5164]"
-                          aria-label={`Delete ${category.name}`}
-                        >
-                          <Trash2 className="size-5" aria-hidden="true" />
-                        </button>
-                      </div>
+              </thead>
+              <tbody>
+                {filteredCategories.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={2}
+                      className="px-6 py-10 text-center text-[16px] text-[#75716B]"
+                    >
+                      No categories found
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                ) : (
+                  filteredCategories.map((category) => (
+                    <tr
+                      key={category.id}
+                      className="border-t border-stone-200 text-[16px] text-[#26231e]"
+                    >
+                      <td className="px-6 py-4">{category.name}</td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center justify-end gap-3">
+                          <Link
+                            to={`/admin/categories/edit/${category.id}`}
+                            className="text-[#75716B] hover:text-[#26231e]"
+                            aria-label={`Edit ${category.name}`}
+                          >
+                            <Pencil className="size-5" aria-hidden="true" />
+                          </Link>
+                          <button
+                            type="button"
+                            onClick={() => setCategoryToDelete(category)}
+                            className="cursor-pointer text-[#75716B] hover:text-[#EB5164]"
+                            aria-label={`Delete ${category.name}`}
+                          >
+                            <Trash2 className="size-5" aria-hidden="true" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
       </section>
 
       <DeleteCategoryModal

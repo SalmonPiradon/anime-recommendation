@@ -1,21 +1,20 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import axios from "axios";
 import { toast } from "sonner";
 
 import { AdminLayout } from "../../components/page-components/AdminLayout";
+import { LoadingState } from "../../components/page-components/LoadingState";
 import { Input } from "@/components/ui/input";
-import {
-  createCategory,
-  getCategoryById,
-  isCategoryNameTaken,
-  updateCategory,
-} from "@/lib/categoryStorage";
+import { fetchCategoryById } from "@/lib/categoryStorage";
 import {
   errorToastClassNames,
   successToastClassNames,
 } from "@/lib/toastStyles";
 
-// หน้าสร้าง / แก้ไข category (หน้าเต็ม ไม่ใช่ modal)
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
+// หน้าสร้าง / แก้ไข category
 // - /admin/categories/create
 // - /admin/categories/edit/:id
 function AdminCategoryFormPage() {
@@ -23,21 +22,39 @@ function AdminCategoryFormPage() {
   const { id } = useParams();
   const isEditMode = Boolean(id);
 
-  const existingCategory = isEditMode ? getCategoryById(id) : null;
-
-  const [name, setName] = useState(existingCategory?.name || "");
+  const [name, setName] = useState("");
   const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(isEditMode);
+  const [notFound, setNotFound] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
-  // ถ้าเข้าโหมดแก้แต่หา category ไม่เจอ
-  if (isEditMode && !existingCategory) {
-    return (
-      <AdminLayout pageTitle="Edit category">
-        <p className="text-[16px] text-[#75716B]">Category not found.</p>
-      </AdminLayout>
-    );
-  }
+  useEffect(() => {
+    if (!isEditMode) {
+      return;
+    }
 
-  const handleSave = (e) => {
+    const loadCategory = async () => {
+      setIsLoading(true);
+      try {
+        const category = await fetchCategoryById(id);
+
+        if (!category) {
+          setNotFound(true);
+          return;
+        }
+
+        setName(category.name || "");
+      } catch {
+        setNotFound(true);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadCategory();
+  }, [id, isEditMode]);
+
+  const handleSave = async (e) => {
     e.preventDefault();
 
     const trimmedName = name.trim();
@@ -47,44 +64,82 @@ function AdminCategoryFormPage() {
       return;
     }
 
-    // ห้ามชื่อซ้ำ
-    if (isCategoryNameTaken(trimmedName, id || "")) {
-      toast("Category already exists", {
-        description: "Please use a different category name.",
+    try {
+      setIsSaving(true);
+
+      if (isEditMode) {
+        await axios.put(`${API_BASE_URL}/categories/${id}`, {
+          name: trimmedName,
+        });
+        toast("Saved category", {
+          description: "Your category has been updated.",
+          classNames: successToastClassNames,
+        });
+      } else {
+        await axios.post(`${API_BASE_URL}/categories`, {
+          name: trimmedName,
+        });
+        toast("Created category", {
+          description: "Your category has been created.",
+          classNames: successToastClassNames,
+        });
+      }
+
+      navigate("/admin/categories");
+    } catch (err) {
+      const message =
+        err.response?.data?.error ||
+        err.response?.data?.message ||
+        "";
+
+      if (
+        message.toLowerCase().includes("exist") ||
+        message.toLowerCase().includes("duplicate") ||
+        message.toLowerCase().includes("unique")
+      ) {
+        toast("Category already exists", {
+          description: "Please use a different category name.",
+          classNames: errorToastClassNames,
+        });
+        return;
+      }
+
+      toast("Failed to save category", {
+        description: message || "Please try again later.",
         classNames: errorToastClassNames,
       });
-      return;
+    } finally {
+      setIsSaving(false);
     }
-
-    if (isEditMode) {
-      updateCategory(id, trimmedName);
-      toast("Saved category", {
-        description: "Your category has been updated.",
-        classNames: successToastClassNames,
-      });
-    } else {
-      createCategory(trimmedName);
-      toast("Created category", {
-        description: "Your category has been created.",
-        classNames: successToastClassNames,
-      });
-    }
-
-    // กลับไปหน้ารายการ
-    navigate("/admin/categories");
   };
+
+  if (isEditMode && isLoading) {
+    return (
+      <AdminLayout pageTitle="Edit category">
+        <LoadingState />
+      </AdminLayout>
+    );
+  }
+
+  if (isEditMode && notFound) {
+    return (
+      <AdminLayout pageTitle="Edit category">
+        <p className="text-[16px] text-[#75716B]">Category not found.</p>
+      </AdminLayout>
+    );
+  }
 
   return (
     <AdminLayout
       pageTitle={isEditMode ? "Edit category" : "Create category"}
-      // ปุ่ม Save อยู่มุมขวาบน ตามดีไซน์
       headerAction={
         <button
           type="submit"
           form="category-form"
-          className="cursor-pointer rounded-full bg-[#26231e] px-8 py-3 text-[16px] font-medium text-white hover:bg-[#26231e]/90"
+          disabled={isSaving}
+          className="cursor-pointer rounded-full bg-[#26231e] px-8 py-3 text-[16px] font-medium text-white hover:bg-[#26231e]/90 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          Save
+          {isSaving ? "Saving..." : "Save"}
         </button>
       }
     >
