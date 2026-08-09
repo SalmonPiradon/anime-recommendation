@@ -1,89 +1,63 @@
-// เก็บ category ใน localStorage (แบบเดียวกับ articleStorage)
-// ใช้ฝึก CRUD ฝั่ง frontend — ยังไม่ต่อ API จริง
+import axios from "axios";
 
-const CATEGORIES_KEY = "blog_admin_categories";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+const API_URL = `${API_BASE_URL}/categories`;
 
-// category เริ่มต้น (ตรงกับที่ API ใช้)
-const DEFAULT_CATEGORIES = [
-  { id: "1", name: "Cat" },
-  { id: "2", name: "Inspiration" },
-  { id: "3", name: "General" },
-];
+function normalizeCategory(category) {
+  return {
+    id: String(category.id),
+    name: category.name || category.category || "",
+  };
+}
 
-// อ่าน category ทั้งหมด
-export function getCategories() {
-  const raw = localStorage.getItem(CATEGORIES_KEY);
+function normalizeCategories(data) {
+  const list = Array.isArray(data)
+    ? data
+    : data?.categories || data?.data || [];
 
-  // ถ้ายังไม่เคยมีข้อมูล → ใส่ของเริ่มต้นให้ก่อน
-  if (!raw) {
-    localStorage.setItem(CATEGORIES_KEY, JSON.stringify(DEFAULT_CATEGORIES));
-    return DEFAULT_CATEGORIES;
+  return list.map(normalizeCategory).filter((category) => category.name);
+}
+
+// ดึง category ทั้งหมดจาก API
+export async function loadCategories() {
+  const response = await axios.get(API_URL);
+  return normalizeCategories(response.data);
+}
+
+// ดึงชื่อ category (ใช้ในหน้า article filter / select)
+export async function loadCategoryNames() {
+  const categories = await loadCategories();
+  return categories.map((category) => category.name);
+}
+
+// ดึง category ตาม id
+export async function fetchCategoryById(id) {
+  try {
+    const response = await axios.get(`${API_URL}/${id}`);
+    const data = response.data?.category || response.data?.data || response.data;
+    return normalizeCategory(data);
+  } catch {
+    // ถ้าไม่มี GET by id → หาจาก list แทน
+    const categories = await loadCategories();
+    return (
+      categories.find((category) => String(category.id) === String(id)) || null
+    );
   }
-
-  return JSON.parse(raw);
-}
-
-// เขียนรายการ category ลง localStorage ทั้งชุด
-function saveCategories(categories) {
-  localStorage.setItem(CATEGORIES_KEY, JSON.stringify(categories));
-}
-
-// เอาเฉพาะชื่อ category (ใช้ตอน filter / select ในหน้า article)
-export function getCategoryNames() {
-  return getCategories().map((category) => category.name);
-}
-
-// หา category จาก id
-export function getCategoryById(id) {
-  return getCategories().find((category) => String(category.id) === String(id));
-}
-
-// เช็กว่าชื่อซ้ำหรือยัง (ตอนสร้าง/แก้ไข)
-export function isCategoryNameTaken(name, excludeId = "") {
-  return getCategories().some(
-    (category) =>
-      category.name.toLowerCase() === name.trim().toLowerCase() &&
-      String(category.id) !== String(excludeId),
-  );
 }
 
 // สร้าง category ใหม่
-export function createCategory(name) {
-  const categories = getCategories();
-  const newCategory = {
-    id: String(Date.now()),
-    name: name.trim(),
-  };
-
-  categories.push(newCategory);
-  saveCategories(categories);
-  return newCategory;
+export async function createCategory(name) {
+  const response = await axios.post(API_URL, { name: name.trim() });
+  return response.data;
 }
 
 // แก้ไขชื่อ category
-export function updateCategory(id, name) {
-  const categories = getCategories();
-  const index = categories.findIndex(
-    (category) => String(category.id) === String(id),
-  );
-
-  if (index === -1) {
-    return null;
-  }
-
-  categories[index] = {
-    ...categories[index],
-    name: name.trim(),
-  };
-
-  saveCategories(categories);
-  return categories[index];
+export async function updateCategory(id, name) {
+  const response = await axios.put(`${API_URL}/${id}`, { name: name.trim() });
+  return response.data;
 }
 
 // ลบ category ตาม id
-export function deleteCategory(id) {
-  const categories = getCategories().filter(
-    (category) => String(category.id) !== String(id),
-  );
-  saveCategories(categories);
+export async function deleteCategory(id) {
+  await axios.delete(`${API_URL}/${id}`);
 }

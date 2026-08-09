@@ -1,10 +1,10 @@
-import { Navigate } from "react-router-dom";
 import { NavLink } from "react-router-dom";
 import { RotateCcw, UserIcon } from "lucide-react";
 
 import { NavBar } from "./NavBar";
-import { useAuthSession } from "../../hooks/useAuthSession";
-import { getProfilePicture } from "../../lib/authStorage";
+import { useAuth } from "../../contexts/authentication";
+
+const DEFAULT_PROFILE_PIC = "/image/default-profile-pic.png";
 
 function getMobileNavClassName(isActive) {
   return `flex items-center gap-2 border-b-2 pb-4 text-[16px] font-medium -mb-px ${
@@ -23,13 +23,12 @@ function getDesktopNavClassName(isActive) {
 }
 
 export function MemberLayout({ pageTitle, children }) {
-  const session = useAuthSession();
+  const { state } = useAuth();
+  const user = state.user;
 
-  if (!session) {
-    return <Navigate to="/login" replace />;
-  }
-
-  const profilePicture = getProfilePicture(session);
+  const profilePicture =
+    user?.profilePic || DEFAULT_PROFILE_PIC;
+  const displayName = user?.name || "";
 
   return (
     <div className="flex min-h-screen flex-col bg-[#F9F8F6]">
@@ -57,11 +56,11 @@ export function MemberLayout({ pageTitle, children }) {
           <div className="flex items-center gap-3">
             <img
               src={profilePicture}
-              alt={session.name}
+              alt={displayName}
               className="size-12 rounded-full object-cover"
             />
             <span className="text-[16px] font-medium text-[#26231e]">
-              {session.name}
+              {displayName}
             </span>
           </div>
 

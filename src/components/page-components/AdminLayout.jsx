@@ -9,8 +9,7 @@ import {
   User,
 } from "lucide-react";
 
-import { logoutUser } from "../../lib/authStorage";
-import { useAuthSession } from "../../hooks/useAuthSession";
+import { useAuth } from "../../contexts/authentication";
 
 // ฟังก์ชันช่วยเปลี่ยนสีลิงก์ sidebar ตามหน้าที่เปิดอยู่
 function getSidebarLinkClassName(isActive) {
@@ -22,16 +21,11 @@ function getSidebarLinkClassName(isActive) {
 }
 
 export function AdminLayout({ pageTitle, headerAction, children }) {
-  const session = useAuthSession();
+  const { logout } = useAuth();
   const navigate = useNavigate();
 
-  // ถ้ายังไม่ login ให้กลับไปหน้า login
-  if (!session) {
-    return <Navigate to="/login" replace />;
-  }
-
   const handleLogout = () => {
-    logoutUser();
+    logout();
     navigate("/");
   };
 

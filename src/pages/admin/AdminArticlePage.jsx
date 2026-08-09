@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import axios from "axios";
 import { Pencil, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -14,16 +15,32 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  deleteArticle,
-  getArticleCategories,
-  getArticles,
-  loadArticles,
-} from "@/lib/articleStorage";
-import { successToastClassNames } from "@/lib/toastStyles";
+  errorToastClassNames,
+  successToastClassNames,
+} from "@/lib/toastStyles";
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+const PAGE_LIMIT = 10;
+
+// แปลงสถานะจาก API → ข้อความที่โชว์ในตาราง
+function mapStatusFromApi(status, statusId) {
+  if (statusId === 2 || status === "publish" || status === "Published") {
+    return "Published";
+  }
+  return "Draft";
+}
+
+function mapApiPostToArticle(post) {
+  return {
+    id: String(post.id),
+    title: post.title,
+    category: post.category || post.category_name || "",
+    status: mapStatusFromApi(post.status, post.status_id),
+  };
+}
 
 // กล่องยืนยันก่อนลบบทความ
 function DeleteArticleModal({ isOpen, articleTitle, onClose, onConfirm }) {
-  // ถ้ายังไม่เปิด modal ก็ไม่ต้องเรนเดอร์อะไร
   if (!isOpen) {
     return null;
   }
@@ -59,59 +76,94 @@ function DeleteArticleModal({ isOpen, articleTitle, onClose, onConfirm }) {
   );
 }
 
-// สีของป้ายสถานะ Draft / Published
 function getStatusClassName(status) {
   if (status === "Published") {
-    return "bg-[#DCFCE7] text-[#166534]"; // เขียว
+    return "bg-[#DCFCE7] text-[#166534]";
   }
-  return "bg-[#E5E5E5] text-[#525252]"; // เทา (Draft)
+  return "bg-[#E5E5E5] text-[#525252]";
 }
 
 function AdminArticlePage() {
-  // เก็บรายการบทความใน state
   const [articles, setArticles] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [categories, setCategories] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
 
-  // ค่าที่ใช้ค้นหาและกรอง
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const [categoryFilter, setCategoryFilter] = useState("All");
 
-  // เก็บบทความที่กำลังจะลบ (ใช้เปิด modal)
   const [articleToDelete, setArticleToDelete] = useState(null);
 
-  // ตอนเปิดหน้า → โหลดโพสต์จาก API (ครั้งแรก) หรือจาก localStorage
-  useEffect(() => {
-    let isMounted = true;
+  // โหลดบทความแบบ pagination (คล้าย ArticleSection)
+  const fetchArticles = async (pageNumber, append = false) => {
+    setIsLoading(true);
+    try {
+      const response = await axios.get(`${API_BASE_URL}/posts/admin`, {
+        params: {
+          page: pageNumber,
+          limit: PAGE_LIMIT,
+        },
+      });
 
-    const fetchArticles = async () => {
-      setIsLoading(true);
+      const mapped = (response.data.posts || []).map(mapApiPostToArticle);
+
+      if (append) {
+        setArticles((prev) => [...prev, ...mapped]);
+      } else {
+        setArticles(mapped);
+      }
+
+      setHasMore(response.data.currentPage < response.data.totalPages);
+    } catch (error) {
+      console.error("Error loading articles:", error);
+      if (!append) {
+        setArticles([]);
+      }
+      setHasMore(false);
+      toast("Failed to load articles", {
+        description: "Please try again later.",
+        classNames: errorToastClassNames,
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // โหลด categories ครั้งเดียวตอนเปิดหน้า
+  useEffect(() => {
+    const fetchCategories = async () => {
       try {
-        const data = await loadArticles();
-        if (isMounted) {
-          setArticles(data);
-        }
+        const categoriesResponse = await axios.get(
+          `${API_BASE_URL}/categories`,
+        );
+        const categoryList = Array.isArray(categoriesResponse.data)
+          ? categoriesResponse.data
+          : categoriesResponse.data?.categories || [];
+        setCategories(categoryList.map((category) => category.name));
       } catch (error) {
-        console.error("Error loading articles:", error);
-        // ถ้า API พัง ยังลองอ่านของใน localStorage อยู่
-        if (isMounted) {
-          setArticles(getArticles());
-        }
-      } finally {
-        if (isMounted) {
-          setIsLoading(false);
-        }
+        console.error("Error loading categories:", error);
+        setCategories([]);
       }
     };
 
-    fetchArticles();
-
-    return () => {
-      isMounted = false;
-    };
+    fetchCategories();
   }, []);
 
-  // กรองบทความตาม search + status + category
+  // โหลดหน้าแรกตอนเปิดหน้า
+  useEffect(() => {
+    setPage(1);
+    setHasMore(true);
+    fetchArticles(1, false);
+  }, []);
+
+  const handleLoadMore = () => {
+    const nextPage = page + 1;
+    setPage(nextPage);
+    fetchArticles(nextPage, true);
+  };
+
   const filteredArticles = useMemo(() => {
     const keyword = searchQuery.trim().toLowerCase();
 
@@ -131,31 +183,40 @@ function AdminArticlePage() {
     });
   }, [articles, searchQuery, statusFilter, categoryFilter]);
 
-  // กดปุ่มถังขยะ → เปิด modal
   const handleAskDelete = (article) => {
     setArticleToDelete(article);
   };
 
-  // กด Delete ใน modal → ลบจริง + อัปเดตรายการบนหน้าจอ
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
     if (!articleToDelete) {
       return;
     }
 
-    deleteArticle(articleToDelete.id);
-    setArticles(getArticles());
-    setArticleToDelete(null);
+    try {
+      await axios.delete(`${API_BASE_URL}/posts/${articleToDelete.id}`);
+      setArticles((prev) =>
+        prev.filter((article) => article.id !== articleToDelete.id),
+      );
+      setArticleToDelete(null);
 
-    toast("Deleted article", {
-      description: "The article has been removed.",
-      classNames: successToastClassNames,
-    });
+      toast("Deleted article", {
+        description: "The article has been removed.",
+        classNames: successToastClassNames,
+      });
+    } catch (error) {
+      toast("Failed to delete article", {
+        description:
+          error.response?.data?.error ||
+          error.response?.data?.message ||
+          "Please try again later.",
+        classNames: errorToastClassNames,
+      });
+    }
   };
 
   return (
     <AdminLayout pageTitle="Article management">
       <section className="flex flex-col gap-6">
-        {/* แถวเครื่องมือ: ค้นหา + กรอง + ปุ่มสร้าง */}
         <div className="flex flex-wrap items-center gap-4">
           <div className="relative min-w-[240px] flex-1">
             <Input
@@ -172,7 +233,6 @@ function AdminArticlePage() {
             />
           </div>
 
-          {/* กรองตามสถานะ */}
           <Select value={statusFilter} onValueChange={setStatusFilter}>
             <SelectTrigger className="h-[48px]! w-[160px] bg-white text-[16px] text-[#75716B]">
               <SelectValue placeholder="Status" />
@@ -184,14 +244,13 @@ function AdminArticlePage() {
             </SelectContent>
           </Select>
 
-          {/* กรองตามหมวดหมู่ */}
           <Select value={categoryFilter} onValueChange={setCategoryFilter}>
             <SelectTrigger className="h-[48px]! w-[180px] bg-white text-[16px] text-[#75716B]">
               <SelectValue placeholder="Category" />
             </SelectTrigger>
             <SelectContent position="popper">
               <SelectItem value="All">Category</SelectItem>
-              {getArticleCategories().map((category) => (
+              {categories.map((category) => (
                 <SelectItem key={category} value={category}>
                   {category}
                 </SelectItem>
@@ -207,10 +266,9 @@ function AdminArticlePage() {
           </Link>
         </div>
 
-        {isLoading ? (
+        {isLoading && articles.length === 0 ? (
           <LoadingState />
         ) : (
-          /* ตารางรายการบทความ */
           <div className="overflow-hidden rounded-2xl bg-white">
             <table className="w-full border-collapse text-left">
               <thead className="bg-[#F9F8F6] text-[14px] font-medium text-[#75716B]">
@@ -250,7 +308,6 @@ function AdminArticlePage() {
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
-                          {/* ปุ่มแก้ไข → ไปหน้าฟอร์ม edit */}
                           <Link
                             to={`/admin/articles/edit/${article.id}`}
                             className="text-[#75716B] hover:text-[#26231e]"
@@ -259,7 +316,6 @@ function AdminArticlePage() {
                             <Pencil className="size-5" aria-hidden="true" />
                           </Link>
 
-                          {/* ปุ่มลบ → เปิด modal */}
                           <button
                             type="button"
                             onClick={() => handleAskDelete(article)}
@@ -276,6 +332,19 @@ function AdminArticlePage() {
               </tbody>
             </table>
           </div>
+        )}
+
+        {isLoading && articles.length > 0 && <LoadingState />}
+
+        {hasMore && !(isLoading && articles.length === 0) && (
+          <button
+            type="button"
+            className="mt-2 mb-4 cursor-pointer self-center text-[16px] font-medium text-[#26231E] underline hover:text-[#26231E]/80 disabled:cursor-not-allowed disabled:opacity-50"
+            onClick={handleLoadMore}
+            disabled={isLoading}
+          >
+            {isLoading ? "Loading..." : "View more"}
+          </button>
         )}
       </section>
 

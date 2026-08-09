@@ -1,16 +1,17 @@
 import { useState } from "react";
+import axios from "axios";
 import { X } from "lucide-react";
 import { toast } from "sonner";
 
 import { AdminLayout } from "../../components/page-components/AdminLayout";
 import { Input } from "@/components/ui/input";
-import { getSessionUser, resetUserPassword } from "@/lib/authStorage";
 import {
   errorToastClassNames,
   successToastClassNames,
 } from "@/lib/toastStyles";
 
-// โมดัลยืนยันก่อนเปลี่ยนรหัสผ่าน
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
 function ResetPasswordModal({ isOpen, onClose, onConfirm }) {
   if (!isOpen) {
     return null;
@@ -56,10 +57,7 @@ function ResetPasswordModal({ isOpen, onClose, onConfirm }) {
   );
 }
 
-// หน้า Reset password ของ admin (logic คล้ายหน้า member)
 function AdminResetPasswordPage() {
-  const user = getSessionUser();
-
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -70,7 +68,6 @@ function AdminResetPasswordPage() {
   });
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // ตรวจฟอร์มก่อนเปิดโมดัล
   const validateForm = () => {
     const newErrors = {
       currentPassword: "",
@@ -98,7 +95,6 @@ function AdminResetPasswordPage() {
     return !Object.values(newErrors).some(Boolean);
   };
 
-  // กดปุ่ม Reset password → เปิดโมดัลยืนยัน
   const handleSubmit = (e) => {
     e.preventDefault();
 
@@ -109,49 +105,49 @@ function AdminResetPasswordPage() {
     setIsModalOpen(true);
   };
 
-  // กดยืนยันในโมดัล → เปลี่ยนรหัสจริง
-  const handleConfirmReset = () => {
-    if (!user) {
-      return;
-    }
+  const handleConfirmReset = async () => {
+    try {
+      const response = await axios.put(`${API_BASE_URL}/auth/reset-password`, {
+        oldPassword: currentPassword,
+        newPassword,
+      });
 
-    const result = resetUserPassword(
-      user.email,
-      currentPassword,
-      newPassword,
-    );
+      // เก็บ token ใหม่หลังเปลี่ยนรหัส (token เก่าอาจใช้ต่อไม่ได้)
+      if (response.data?.access_token) {
+        localStorage.setItem("token", response.data.access_token);
+      }
 
-    setIsModalOpen(false);
+      setIsModalOpen(false);
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
 
-    if (!result.success) {
-      if (result.error === "current_password") {
+      toast("Password reset", {
+        description: "Your password has been successfully updated",
+        classNames: successToastClassNames,
+      });
+    } catch (error) {
+      setIsModalOpen(false);
+
+      const message = error.response?.data?.error || "";
+
+      if (
+        message.toLowerCase().includes("current") ||
+        message.toLowerCase().includes("incorrect") ||
+        message.toLowerCase().includes("wrong") ||
+        message.toLowerCase().includes("old password")
+      ) {
         setErrors((prev) => ({
           ...prev,
           currentPassword: "Current password is incorrect",
         }));
-        toast("Could not reset password", {
-          description: "Your current password is incorrect",
-          classNames: errorToastClassNames,
-        });
-        return;
       }
 
-      setErrors((prev) => ({
-        ...prev,
-        newPassword: "Password must be at least 6 characters",
-      }));
-      return;
+      toast("Could not reset password", {
+        description: message || "Please try again later.",
+        classNames: errorToastClassNames,
+      });
     }
-
-    // เคลียร์ฟอร์มหลังสำเร็จ
-    setCurrentPassword("");
-    setNewPassword("");
-    setConfirmPassword("");
-
-    toast("Password reset", {
-      description: "Your password has been successfully updated",
-      classNames: successToastClassNames,
-    });
   };
 
   const getInputClassName = (field) =>
@@ -163,7 +159,6 @@ function AdminResetPasswordPage() {
     <>
       <AdminLayout
         pageTitle="Reset password"
-        // ปุ่ม Reset password อยู่มุมขวาบน ตามดีไซน์
         headerAction={
           <button
             type="submit"
