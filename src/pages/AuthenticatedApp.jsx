@@ -12,6 +12,7 @@ import AdminCategoryFormPage from "./admin/AdminCategoryFormPage";
 import AdminProfilePage from "./admin/AdminProfilePage";
 import AdminNotificationPage from "./admin/AdminNotificationPage";
 import AdminResetPasswordPage from "./admin/AdminResetPasswordPage";
+import AdminRoute from "../components/auth/AdminRoute";
 
 function AuthenticatedApp() {
   return (
@@ -24,17 +25,19 @@ function AuthenticatedApp() {
       <Route path="/profile" element={<ProfilePage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
 
-      {/* หน้า admin */}
-      <Route path="/admin" element={<Navigate to="/admin/articles" replace />} />
-      <Route path="/admin/articles" element={<AdminArticlePage />} />
-      <Route path="/admin/articles/create" element={<AdminArticleFormPage />} />
-      <Route path="/admin/articles/edit/:id" element={<AdminArticleFormPage />} />
-      <Route path="/admin/categories" element={<AdminCategoryPage />} />
-      <Route path="/admin/categories/create" element={<AdminCategoryFormPage />} />
-      <Route path="/admin/categories/edit/:id" element={<AdminCategoryFormPage />} />
-      <Route path="/admin/profile" element={<AdminProfilePage />} />
-      <Route path="/admin/notifications" element={<AdminNotificationPage />} />
-      <Route path="/admin/reset-password" element={<AdminResetPasswordPage />} />
+      {/* หน้า admin — เฉพาะ role admin (เช็กครั้งเดียวที่ parent) */}
+      <Route path="/admin" element={<AdminRoute />}>
+        <Route index element={<Navigate to="articles" replace />} />
+        <Route path="articles" element={<AdminArticlePage />} />
+        <Route path="articles/create" element={<AdminArticleFormPage />} />
+        <Route path="articles/edit/:id" element={<AdminArticleFormPage />} />
+        <Route path="categories" element={<AdminCategoryPage />} />
+        <Route path="categories/create" element={<AdminCategoryFormPage />} />
+        <Route path="categories/edit/:id" element={<AdminCategoryFormPage />} />
+        <Route path="profile" element={<AdminProfilePage />} />
+        <Route path="notifications" element={<AdminNotificationPage />} />
+        <Route path="reset-password" element={<AdminResetPasswordPage />} />
+      </Route>
 
       <Route path="*" element={<NotFoundPage />} />
     </Routes>

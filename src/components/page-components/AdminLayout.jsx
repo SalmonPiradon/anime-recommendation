@@ -21,8 +21,12 @@ function getSidebarLinkClassName(isActive) {
 }
 
 export function AdminLayout({ pageTitle, headerAction, children }) {
-  const { logout } = useAuth();
+  const { logout, state } = useAuth();
   const navigate = useNavigate();
+
+  if (state.user?.role !== "admin") {
+    return <Navigate to="/" replace />;
+  }
 
   const handleLogout = () => {
     logout();
