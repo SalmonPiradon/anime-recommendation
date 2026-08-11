@@ -20,6 +20,7 @@ export function NavBar() {
   const { state, logout, isAuthenticated } = useAuth();
   const user = state.user;
   const isLoggedIn = isAuthenticated;
+  const isAdmin = user?.role === "admin";
   const profilePicture = user?.profilePic || DEFAULT_PROFILE_PIC;
   const displayName = user?.name || "";
   const navigate = useNavigate();
@@ -95,15 +96,17 @@ export function NavBar() {
                       Reset password
                     </Link>
                   </DropdownMenuItem>
-                  <DropdownMenuItem
-                    asChild
-                    className="flex cursor-pointer items-center gap-2 text-[16px] font-medium text-[#43403B]"
-                  >
-                    <Link to="/admin/articles">
-                      <LayoutDashboard />
-                      Admin panel
-                    </Link>
-                  </DropdownMenuItem>
+                  {isAdmin && (
+                    <DropdownMenuItem
+                      asChild
+                      className="flex cursor-pointer items-center gap-2 text-[16px] font-medium text-[#43403B]"
+                    >
+                      <Link to="/admin/articles">
+                        <LayoutDashboard />
+                        Admin panel
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                     asChild
@@ -211,13 +214,15 @@ export function NavBar() {
                   Reset password
                 </Link>
 
-                <Link
-                  to="/admin/articles"
-                  className={menuItemClassName}
-                >
-                  <LayoutDashboard className="size-5 shrink-0" aria-hidden="true" />
-                  Admin panel
-                </Link>
+                {isAdmin && (
+                  <Link
+                    to="/admin/articles"
+                    className={menuItemClassName}
+                  >
+                    <LayoutDashboard className="size-5 shrink-0" aria-hidden="true" />
+                    Admin panel
+                  </Link>
+                )}
 
                 <hr className="my-2 border-stone-300" />
 
